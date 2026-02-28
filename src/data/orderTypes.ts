@@ -1,7 +1,14 @@
+export interface OrderItemSelection {
+  groupName: string;
+  choiceNames: string[];
+  addedPrice: number;
+}
+
 export interface OrderItem {
   menuItemId: string;
   name: string;
-  variationName?: string; // เช่น "แก้วใหญ่"
+  variationName?: string; // เช่น "แก้วใหญ่" (backward compat)
+  selections?: OrderItemSelection[];
   price: number;
   quantity: number;
 }

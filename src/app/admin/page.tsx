@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useContent } from "@/hooks/useContent";
-import { SiteContent, MenuItem, MenuVariation, Branch, defaultContent } from "@/data/defaultContent";
+import { SiteContent, MenuItem, Branch, OptionGroup, OptionChoice, defaultContent } from "@/data/defaultContent";
 import {
   ArrowLeft,
   Plus,
@@ -397,60 +397,158 @@ function AdminDashboard() {
                     </label>
                   </div>
 
-                  {/* ── ตัวเลือก (Variations) ── */}
+                  {/* ── กลุ่มตัวเลือก (Option Groups) ── */}
                   <div className="sm:col-span-2 mt-2">
                     <label
                       className="text-xs font-medium mb-2 block"
                       style={{ color: "var(--theme-text-secondary)" }}
                     >
-                      ตัวเลือก (เช่น ขนาด, ระดับความหวาน) — เว้นว่างถ้าไม่มี
+                      กลุ่มตัวเลือก (เช่น ขนาดแก้ว, ท็อปปิ้ง) — เว้นว่างถ้าไม่มี
                     </label>
-                    {(item.variations || []).map((v, vi) => (
-                      <div key={v.id} className="flex items-center gap-2 mb-2">
-                        <input
-                          className="admin-input flex-1"
-                          placeholder="ชื่อ เช่น แก้วใหญ่"
-                          value={v.name}
-                          onChange={(e) => {
-                            const vars = [...(item.variations || [])];
-                            vars[vi] = { ...vars[vi], name: e.target.value };
-                            updateMenuItem(item.id, "variations" as keyof MenuItem, vars as unknown as string);
-                          }}
-                        />
-                        <input
-                          className="admin-input w-24"
-                          type="number"
-                          placeholder="ราคา"
-                          value={v.price}
-                          onChange={(e) => {
-                            const vars = [...(item.variations || [])];
-                            vars[vi] = { ...vars[vi], price: parseInt(e.target.value) || 0 };
-                            updateMenuItem(item.id, "variations" as keyof MenuItem, vars as unknown as string);
-                          }}
-                        />
-                        <span className="text-xs shrink-0" style={{ color: "var(--theme-text-secondary)" }}>฿</span>
+                    {(item.optionGroups || []).map((group, gi) => (
+                      <div
+                        key={group.id}
+                        className="p-3 rounded-xl mb-3"
+                        style={{ background: "rgba(255,255,255,0.4)", border: "1px solid rgba(45,143,94,0.08)" }}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <input
+                            className="admin-input flex-1 mr-2"
+                            placeholder="ชื่อกลุ่ม เช่น ขนาดแก้ว"
+                            value={group.name}
+                            onChange={(e) => {
+                              const groups = [...(item.optionGroups || [])];
+                              groups[gi] = { ...groups[gi], name: e.target.value };
+                              updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              const groups = (item.optionGroups || []).filter((_, j) => j !== gi);
+                              updateMenuItem(item.id, "optionGroups" as keyof MenuItem, (groups.length ? groups : undefined) as unknown as string);
+                            }}
+                            className="p-1 rounded-lg shrink-0"
+                            style={{ color: "#E8668B" }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <div className="flex gap-2 mb-2 flex-wrap">
+                          <select
+                            className="admin-input text-xs flex-1"
+                            value={group.selectionType}
+                            onChange={(e) => {
+                              const groups = [...(item.optionGroups || [])];
+                              groups[gi] = { ...groups[gi], selectionType: e.target.value as OptionGroup["selectionType"] };
+                              updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
+                            }}
+                          >
+                            <option value="single">เลือก 1 อย่าง</option>
+                            <option value="multiple">เลือกได้หลายอย่าง</option>
+                            <option value="limit">จำกัดจำนวน</option>
+                          </select>
+                          {group.selectionType === "limit" && (
+                            <input
+                              className="admin-input w-20 text-xs"
+                              type="number"
+                              min={1}
+                              placeholder="จำนวน"
+                              value={group.maxSelections || ""}
+                              onChange={(e) => {
+                                const groups = [...(item.optionGroups || [])];
+                                groups[gi] = { ...groups[gi], maxSelections: parseInt(e.target.value) || 1 };
+                                updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
+                              }}
+                            />
+                          )}
+                          <select
+                            className="admin-input text-xs flex-1"
+                            value={group.pricingType}
+                            onChange={(e) => {
+                              const groups = [...(item.optionGroups || [])];
+                              groups[gi] = { ...groups[gi], pricingType: e.target.value as OptionGroup["pricingType"] };
+                              updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
+                            }}
+                          >
+                            <option value="fixed">ราคาแทนที่</option>
+                            <option value="addon">ราคาเพิ่มเติม</option>
+                          </select>
+                        </div>
+                        {/* Choices */}
+                        {group.choices.map((choice, ci) => (
+                          <div key={choice.id} className="flex items-center gap-2 mb-1.5">
+                            <input
+                              className="admin-input flex-1"
+                              placeholder="ชื่อตัวเลือก"
+                              value={choice.name}
+                              onChange={(e) => {
+                                const groups = [...(item.optionGroups || [])];
+                                const choices = [...groups[gi].choices];
+                                choices[ci] = { ...choices[ci], name: e.target.value };
+                                groups[gi] = { ...groups[gi], choices };
+                                updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
+                              }}
+                            />
+                            <input
+                              className="admin-input w-20"
+                              type="number"
+                              placeholder="ราคา"
+                              value={choice.price}
+                              onChange={(e) => {
+                                const groups = [...(item.optionGroups || [])];
+                                const choices = [...groups[gi].choices];
+                                choices[ci] = { ...choices[ci], price: parseInt(e.target.value) || 0 };
+                                groups[gi] = { ...groups[gi], choices };
+                                updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
+                              }}
+                            />
+                            <span className="text-xs shrink-0" style={{ color: "var(--theme-text-secondary)" }}>฿</span>
+                            <button
+                              onClick={() => {
+                                const groups = [...(item.optionGroups || [])];
+                                const choices = groups[gi].choices.filter((_, j) => j !== ci);
+                                groups[gi] = { ...groups[gi], choices };
+                                updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
+                              }}
+                              className="p-1 rounded-lg"
+                              style={{ color: "#E8668B" }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
                         <button
                           onClick={() => {
-                            const vars = (item.variations || []).filter((_, j) => j !== vi);
-                            updateMenuItem(item.id, "variations" as keyof MenuItem, (vars.length ? vars : undefined) as unknown as string);
+                            const groups = [...(item.optionGroups || [])];
+                            const newChoice: OptionChoice = { id: Date.now().toString(), name: "", price: 0 };
+                            groups[gi] = { ...groups[gi], choices: [...groups[gi].choices, newChoice] };
+                            updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
                           }}
-                          className="p-1 rounded-lg"
-                          style={{ color: "#E8668B" }}
+                          className="text-xs font-semibold flex items-center gap-1 mt-1"
+                          style={{ color: "var(--theme-primary)" }}
                         >
-                          <Trash2 size={14} />
+                          <Plus size={12} />
+                          เพิ่มตัวเลือก
                         </button>
                       </div>
                     ))}
                     <button
                       onClick={() => {
-                        const vars = [...(item.variations || []), { id: Date.now().toString(), name: "", price: item.price }];
-                        updateMenuItem(item.id, "variations" as keyof MenuItem, vars as unknown as string);
+                        const newGroup: OptionGroup = {
+                          id: Date.now().toString(),
+                          name: "",
+                          pricingType: "fixed",
+                          selectionType: "single",
+                          choices: [],
+                        };
+                        const groups = [...(item.optionGroups || []), newGroup];
+                        updateMenuItem(item.id, "optionGroups" as keyof MenuItem, groups as unknown as string);
                       }}
                       className="text-xs font-semibold flex items-center gap-1 mt-1"
                       style={{ color: "var(--theme-primary)" }}
                     >
                       <Plus size={14} />
-                      เพิ่มตัวเลือก
+                      เพิ่มกลุ่มตัวเลือก
                     </button>
                   </div>
                 </div>

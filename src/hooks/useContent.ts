@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { defaultContent, SiteContent, MenuItem } from "@/data/defaultContent";
+import { defaultContent, SiteContent, MenuItem, OptionGroup } from "@/data/defaultContent";
 
 const STORAGE_KEY = "dessert-site-content";
 
@@ -22,10 +22,25 @@ export function useContent() {
           about: { ...defaultContent.about, ...parsed.about },
           cta: { ...defaultContent.cta, ...parsed.cta },
           footer: { ...defaultContent.footer, ...parsed.footer },
-          menu: (parsed.menu ?? defaultContent.menu).map((item: Record<string, unknown>) => ({
-            ...{ imageUrl: "" },
-            ...item,
-          } as MenuItem)),
+          menu: (parsed.menu ?? defaultContent.menu).map((item: Record<string, unknown>) => {
+            const base = { imageUrl: "", ...item } as MenuItem;
+            // Migration: convert old variations → optionGroups
+            if (base.variations && base.variations.length > 0 && !base.optionGroups) {
+              const migrated: OptionGroup = {
+                id: "migrated-" + (base.id || Date.now()),
+                name: "ตัวเลือก",
+                pricingType: "fixed",
+                selectionType: "single",
+                choices: base.variations.map((v) => ({
+                  id: v.id,
+                  name: v.name,
+                  price: v.price,
+                })),
+              };
+              base.optionGroups = [migrated];
+            }
+            return base;
+          }),
           branches: parsed.branches ?? defaultContent.branches,
         };
         setContent(merged);

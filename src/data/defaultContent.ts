@@ -4,6 +4,21 @@ export interface MenuVariation {
   price: number;
 }
 
+export interface OptionChoice {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface OptionGroup {
+  id: string;
+  name: string; // "ขนาดแก้ว", "ท็อปปิ้ง"
+  pricingType: "fixed" | "addon"; // fixed=แทนที่ base, addon=บวกเพิ่ม
+  selectionType: "single" | "multiple" | "limit";
+  maxSelections?: number; // ใช้เมื่อ limit
+  choices: OptionChoice[];
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -12,6 +27,7 @@ export interface MenuItem {
   isPopular: boolean;
   imageUrl: string;
   variations?: MenuVariation[];
+  optionGroups?: OptionGroup[];
 }
 
 export interface Branch {

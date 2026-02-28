@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useContent } from "@/hooks/useContent";
 import { useOrderStatus, useQueuesAhead, useQueueConfig } from "@/hooks/useOrders";
-import { MenuItem } from "@/data/defaultContent";
-import { OrderItem, Order } from "@/data/orderTypes";
+import { MenuItem, OptionGroup } from "@/data/defaultContent";
+import { OrderItem, Order, OrderItemSelection } from "@/data/orderTypes";
 import { useTheme } from "@/hooks/useTheme";
 import {
   ShoppingCart,
@@ -22,9 +22,76 @@ import {
   Bell,
   Smartphone,
   Share2,
+  X,
 } from "lucide-react";
 
 const LOCAL_ORDER_KEY = "dessert-last-order-id";
+
+// ─── Cart Types ───
+
+interface CartEntry {
+  id: string;
+  menuItemId: string;
+  selections: Record<string, string[]>; // groupId → choiceId[]
+  quantity: number;
+}
+
+// ─── Price Helpers ───
+
+function computeUnitPrice(item: MenuItem, selections: Record<string, string[]>): number {
+  const groups = item.optionGroups || [];
+  let base = item.price;
+
+  for (const group of groups) {
+    const selected = selections[group.id] || [];
+    if (group.pricingType === "fixed" && selected.length > 0) {
+      const choice = group.choices.find((c) => c.id === selected[0]);
+      if (choice) base = choice.price;
+    }
+  }
+
+  let addon = 0;
+  for (const group of groups) {
+    const selected = selections[group.id] || [];
+    if (group.pricingType === "addon") {
+      for (const cid of selected) {
+        const choice = group.choices.find((c) => c.id === cid);
+        if (choice) addon += choice.price;
+      }
+    }
+  }
+
+  return base + addon;
+}
+
+function cartEntryTotal(entry: CartEntry, menu: MenuItem[]): number {
+  const item = menu.find((m) => m.id === entry.menuItemId);
+  if (!item) return 0;
+  return computeUnitPrice(item, entry.selections) * entry.quantity;
+}
+
+function formatSelections(item: MenuItem, selections: Record<string, string[]>): string {
+  const groups = item.optionGroups || [];
+  const parts: string[] = [];
+  for (const group of groups) {
+    const selected = selections[group.id] || [];
+    const names = selected
+      .map((cid) => group.choices.find((c) => c.id === cid)?.name)
+      .filter(Boolean);
+    if (names.length > 0) parts.push(names.join(", "));
+  }
+  return parts.length > 0 ? parts.join(" / ") : "";
+}
+
+// Format OrderItem display name (backward-compatible)
+function formatItemDisplay(item: OrderItem): string {
+  if (item.selections && item.selections.length > 0) {
+    const parts = item.selections.map((s) => s.choiceNames.join(", ")).filter((s) => s);
+    return parts.length > 0 ? `${item.name} (${parts.join(" / ")})` : item.name;
+  }
+  if (item.variationName) return `${item.name} (${item.variationName})`;
+  return item.name;
+}
 
 // ─── Step Indicator ───
 
@@ -86,12 +153,198 @@ function MyQueueBanner() {
   );
 }
 
-// ─── Step 1: Menu Selection ───
+// ─── Selection Modal ───
 
-// Cart key: "itemId" (no variation) or "itemId:varId" (with variation)
-function cartKey(itemId: string, varId?: string) {
-  return varId ? `${itemId}:${varId}` : itemId;
+function SelectionModal({
+  item,
+  onAdd,
+  onClose,
+}: {
+  item: MenuItem;
+  onAdd: (selections: Record<string, string[]>, qty: number) => void;
+  onClose: () => void;
+}) {
+  const groups = item.optionGroups || [];
+  const [selections, setSelections] = useState<Record<string, string[]>>(() => {
+    const init: Record<string, string[]> = {};
+    for (const g of groups) {
+      if (g.selectionType === "single" && g.choices.length > 0) {
+        init[g.id] = [g.choices[0].id];
+      } else {
+        init[g.id] = [];
+      }
+    }
+    return init;
+  });
+  const [qty, setQty] = useState(1);
+
+  const toggleChoice = (group: OptionGroup, choiceId: string) => {
+    setSelections((prev) => {
+      const current = prev[group.id] || [];
+      if (group.selectionType === "single") {
+        return { ...prev, [group.id]: [choiceId] };
+      }
+      // multiple or limit
+      if (current.includes(choiceId)) {
+        return { ...prev, [group.id]: current.filter((c) => c !== choiceId) };
+      }
+      if (group.selectionType === "limit" && group.maxSelections && current.length >= group.maxSelections) {
+        return prev;
+      }
+      return { ...prev, [group.id]: [...current, choiceId] };
+    });
+  };
+
+  const unitPrice = computeUnitPrice(item, selections);
+  const totalPrice = unitPrice * qty;
+
+  // Validate: all single groups must have a selection
+  const isValid = groups.every((g) => {
+    if (g.selectionType === "single") return (selections[g.id] || []).length === 1;
+    return true;
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-card w-full sm:max-w-md max-h-[85vh] overflow-y-auto"
+        style={{ borderRadius: "24px 24px 0 0", cursor: "default" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 pb-3">
+          <h3 className="font-bold text-lg" style={{ color: "var(--theme-text-primary)" }}>
+            {item.name}
+          </h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-text-secondary)" }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {item.description && (
+          <p className="px-5 text-xs mb-3" style={{ color: "var(--theme-text-secondary)" }}>
+            {item.description}
+          </p>
+        )}
+
+        {/* Option Groups */}
+        <div className="px-5 flex flex-col gap-4">
+          {groups.map((group) => {
+            const selected = selections[group.id] || [];
+            const remaining = group.selectionType === "limit" && group.maxSelections
+              ? group.maxSelections - selected.length
+              : null;
+
+            return (
+              <div key={group.id}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-sm" style={{ color: "var(--theme-text-primary)" }}>
+                    {group.name}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>
+                    {group.selectionType === "single" && "เลือก 1 อย่าง"}
+                    {group.selectionType === "multiple" && "เลือกได้หลายอย่าง"}
+                    {group.selectionType === "limit" && remaining !== null && `เลือกได้อีก ${remaining} อย่าง`}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {group.choices.map((choice) => {
+                    const isSelected = selected.includes(choice.id);
+                    const isDisabled = !isSelected &&
+                      group.selectionType === "limit" &&
+                      group.maxSelections !== undefined &&
+                      selected.length >= group.maxSelections;
+
+                    return (
+                      <button
+                        key={choice.id}
+                        onClick={() => toggleChoice(group, choice.id)}
+                        disabled={isDisabled}
+                        className="flex items-center justify-between p-3 rounded-xl transition-all"
+                        style={{
+                          background: isSelected
+                            ? "color-mix(in srgb, var(--theme-primary) 12%, transparent)"
+                            : "rgba(255,255,255,0.5)",
+                          border: isSelected
+                            ? "1.5px solid var(--theme-primary)"
+                            : "1.5px solid transparent",
+                          opacity: isDisabled ? 0.4 : 1,
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          {/* Radio / Checkbox indicator */}
+                          <div
+                            className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                            style={{
+                              border: `2px solid ${isSelected ? "var(--theme-primary)" : "color-mix(in srgb, var(--theme-text-secondary) 30%, transparent)"}`,
+                              borderRadius: group.selectionType === "single" ? "50%" : "6px",
+                              background: isSelected ? "var(--theme-primary)" : "transparent",
+                            }}
+                          >
+                            {isSelected && (
+                              <CheckCircle size={12} style={{ color: "white" }} />
+                            )}
+                          </div>
+                          <span className="text-sm font-medium" style={{ color: "var(--theme-text-primary)" }}>
+                            {choice.name}
+                          </span>
+                        </div>
+                        <span className="text-sm font-semibold" style={{ color: "var(--theme-primary)" }}>
+                          {group.pricingType === "fixed" ? `฿${choice.price}` : `+฿${choice.price}`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Quantity + Add button */}
+        <div className="p-5 pt-4 mt-2" style={{ borderTop: "1px solid color-mix(in srgb, var(--theme-primary) 10%, transparent)" }}>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <button
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              className="w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
+            >
+              <Minus size={16} />
+            </button>
+            <span className="font-bold text-lg w-8 text-center" style={{ color: "var(--theme-text-primary)" }}>
+              {qty}
+            </span>
+            <button
+              onClick={() => setQty((q) => q + 1)}
+              className="w-9 h-9 rounded-full flex items-center justify-center"
+              style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+          <button
+            onClick={() => { if (isValid) onAdd(selections, qty); }}
+            disabled={!isValid}
+            className="glass-cta w-full"
+            style={{ opacity: isValid ? 1 : 0.5 }}
+          >
+            เพิ่มลงตะกร้า ฿{totalPrice}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+// ─── Step 1: Menu Selection ───
 
 function MenuStep({
   menu,
@@ -100,17 +353,14 @@ function MenuStep({
   onNext,
 }: {
   menu: MenuItem[];
-  cart: Record<string, number>;
-  setCart: (c: Record<string, number>) => void;
+  cart: CartEntry[];
+  setCart: (c: CartEntry[]) => void;
   onNext: () => void;
 }) {
-  const total = menu.reduce((sum, item) => {
-    if (item.variations && item.variations.length > 0) {
-      return sum + item.variations.reduce((vs, v) => vs + (cart[cartKey(item.id, v.id)] || 0) * v.price, 0);
-    }
-    return sum + (cart[item.id] || 0) * item.price;
-  }, 0);
-  const count = Object.values(cart).reduce((s, q) => s + q, 0);
+  const [modalItem, setModalItem] = useState<MenuItem | null>(null);
+
+  const total = cart.reduce((sum, entry) => sum + cartEntryTotal(entry, menu), 0);
+  const count = cart.reduce((s, e) => s + e.quantity, 0);
 
   const imgClasses = [
     "menu-img-1",
@@ -121,13 +371,17 @@ function MenuStep({
     "menu-img-6",
   ];
 
-  // Helper: qty controls for a single cart key
-  const QtyControl = ({ ck, price }: { ck: string; price: number }) => {
-    const qty = cart[ck] || 0;
+  const hasOptions = (item: MenuItem) => item.optionGroups && item.optionGroups.length > 0;
+
+  // Simple qty control for items without option groups
+  const SimpleQtyControl = ({ itemId, price }: { itemId: string; price: number }) => {
+    const entry = cart.find((e) => e.menuItemId === itemId);
+    const qty = entry?.quantity || 0;
+
     if (qty === 0) {
       return (
         <button
-          onClick={() => setCart({ ...cart, [ck]: 1 })}
+          onClick={() => setCart([...cart, { id: Date.now().toString(), menuItemId: itemId, selections: {}, quantity: 1 }])}
           className="glass-cta"
           style={{ padding: "3px 10px", fontSize: "12px", borderRadius: "10px" }}
         >
@@ -140,10 +394,8 @@ function MenuStep({
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => {
-            const next = { ...cart };
-            if (qty <= 1) delete next[ck];
-            else next[ck] = qty - 1;
-            setCart(next);
+            if (qty <= 1) setCart(cart.filter((e) => e.menuItemId !== itemId || Object.keys(e.selections).length > 0));
+            else setCart(cart.map((e) => e.id === entry!.id ? { ...e, quantity: e.quantity - 1 } : e));
           }}
           className="w-6 h-6 rounded-full flex items-center justify-center"
           style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
@@ -152,7 +404,7 @@ function MenuStep({
         </button>
         <span className="font-bold text-xs w-4 text-center" style={{ color: "var(--theme-text-primary)" }}>{qty}</span>
         <button
-          onClick={() => setCart({ ...cart, [ck]: qty + 1 })}
+          onClick={() => setCart(cart.map((e) => e.id === entry!.id ? { ...e, quantity: e.quantity + 1 } : e))}
           className="w-6 h-6 rounded-full flex items-center justify-center"
           style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
         >
@@ -161,6 +413,21 @@ function MenuStep({
       </div>
     );
   };
+
+  const handleAddFromModal = (item: MenuItem, selections: Record<string, string[]>, qty: number) => {
+    const newEntry: CartEntry = {
+      id: Date.now().toString(),
+      menuItemId: item.id,
+      selections,
+      quantity: qty,
+    };
+    setCart([...cart, newEntry]);
+    setModalItem(null);
+  };
+
+  // Count items in cart for a menu item
+  const itemCartCount = (itemId: string) =>
+    cart.filter((e) => e.menuItemId === itemId).reduce((s, e) => s + e.quantity, 0);
 
   return (
     <>
@@ -173,11 +440,8 @@ function MenuStep({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-28">
         {menu.map((item, i) => {
-          const hasVariations = item.variations && item.variations.length > 0;
-          // Total qty for this item across all variations
-          const itemQty = hasVariations
-            ? item.variations!.reduce((s, v) => s + (cart[cartKey(item.id, v.id)] || 0), 0)
-            : cart[item.id] || 0;
+          const withOptions = hasOptions(item);
+          const cartCount = itemCartCount(item.id);
 
           return (
             <div
@@ -218,42 +482,95 @@ function MenuStep({
                     </p>
                   </div>
 
-                  {/* No variations → simple price + qty */}
-                  {!hasVariations && (
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="font-bold text-sm" style={{ color: "var(--theme-primary)" }}>
-                        ฿{item.price}
-                      </span>
-                      <QtyControl ck={item.id} price={item.price} />
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="font-bold text-sm" style={{ color: "var(--theme-primary)" }}>
+                      {withOptions
+                        ? (() => {
+                            const prices = item.optionGroups!.flatMap((g) =>
+                              g.pricingType === "fixed" ? g.choices.map((c) => c.price) : []
+                            );
+                            if (prices.length > 0) {
+                              const mn = Math.min(...prices);
+                              const mx = Math.max(...prices);
+                              return mn === mx ? `฿${mn}` : `฿${mn} - ฿${mx}`;
+                            }
+                            return `฿${item.price}`;
+                          })()
+                        : `฿${item.price}`}
+                    </span>
 
-                  {/* Has variations → show price range */}
-                  {hasVariations && (
-                    <div className="mt-2">
-                      <span className="font-bold text-xs" style={{ color: "var(--theme-primary)" }}>
-                        ฿{Math.min(...item.variations!.map((v) => v.price))} - ฿{Math.max(...item.variations!.map((v) => v.price))}
-                      </span>
-                    </div>
-                  )}
+                    {!withOptions && <SimpleQtyControl itemId={item.id} price={item.price} />}
+
+                    {withOptions && (
+                      <div className="flex items-center gap-1.5">
+                        {cartCount > 0 && (
+                          <span
+                            className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: "color-mix(in srgb, var(--theme-primary) 15%, transparent)", color: "var(--theme-primary)" }}
+                          >
+                            {cartCount}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setModalItem(item)}
+                          className="glass-cta"
+                          style={{ padding: "3px 10px", fontSize: "12px", borderRadius: "10px" }}
+                        >
+                          <Plus size={12} />
+                          เลือก
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Variation rows */}
-              {hasVariations && (
+              {/* Cart entries for this item (with options) */}
+              {withOptions && cartCount > 0 && (
                 <div
                   className="px-3 pb-3 flex flex-col gap-1.5"
                   style={{ borderTop: "1px solid color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}
                 >
-                  {item.variations!.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between pt-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>{v.name}</span>
-                        <span className="text-xs font-semibold" style={{ color: "var(--theme-primary)" }}>฿{v.price}</span>
-                      </div>
-                      <QtyControl ck={cartKey(item.id, v.id)} price={v.price} />
-                    </div>
-                  ))}
+                  {cart
+                    .filter((e) => e.menuItemId === item.id)
+                    .map((entry) => {
+                      const selText = formatSelections(item, entry.selections);
+                      const unitP = computeUnitPrice(item, entry.selections);
+                      return (
+                        <div key={entry.id} className="flex items-center justify-between pt-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs truncate" style={{ color: "var(--theme-text-secondary)" }}>
+                              {selText || "ไม่มีตัวเลือก"}
+                            </span>
+                            <span className="text-xs font-semibold shrink-0" style={{ color: "var(--theme-primary)" }}>
+                              ฿{unitP}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => {
+                                if (entry.quantity <= 1) setCart(cart.filter((e) => e.id !== entry.id));
+                                else setCart(cart.map((e) => e.id === entry.id ? { ...e, quantity: e.quantity - 1 } : e));
+                              }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <span className="font-bold text-xs w-4 text-center" style={{ color: "var(--theme-text-primary)" }}>
+                              {entry.quantity}
+                            </span>
+                            <button
+                              onClick={() => setCart(cart.map((e) => e.id === entry.id ? { ...e, quantity: e.quantity + 1 } : e))}
+                              className="w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -281,6 +598,15 @@ function MenuStep({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Selection Modal */}
+      {modalItem && (
+        <SelectionModal
+          item={modalItem}
+          onAdd={(selections, qty) => handleAddFromModal(modalItem, selections, qty)}
+          onClose={() => setModalItem(null)}
+        />
       )}
     </>
   );
@@ -462,10 +788,10 @@ function PaymentStep({
           สรุปออเดอร์
         </h3>
         <div className="flex flex-col gap-2 mb-3">
-          {items.map((item) => (
-            <div key={item.menuItemId} className="flex justify-between text-sm">
+          {items.map((item, idx) => (
+            <div key={idx} className="flex justify-between text-sm">
               <span style={{ color: "var(--theme-text-secondary)" }}>
-                {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
+                {formatItemDisplay(item)} x{item.quantity}
               </span>
               <span className="font-medium" style={{ color: "var(--theme-text-primary)" }}>
                 ฿{item.price * item.quantity}
@@ -777,7 +1103,7 @@ function TicketStep({ order }: { order: Order }) {
               className="flex justify-between text-sm py-1"
             >
               <span style={{ color: "var(--theme-text-secondary)" }}>
-                {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
+                {formatItemDisplay(item)} x{item.quantity}
               </span>
               <span style={{ color: "var(--theme-text-primary)" }}>
                 ฿{item.price * item.quantity}
@@ -912,33 +1238,44 @@ export default function OrderPage() {
   const { content, isLoaded } = useContent();
   useTheme();
   const [step, setStep] = useState(1);
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<CartEntry[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
 
-  // Build items from cart (supports "itemId" and "itemId:varId" keys)
+  // Build OrderItem[] from CartEntry[]
   const buildItems = useCallback((): OrderItem[] => {
-    return Object.entries(cart)
-      .filter(([, qty]) => qty > 0)
-      .map(([key, qty]) => {
-        const [itemId, varId] = key.split(":");
-        const menuItem = content.menu.find((m) => m.id === itemId)!;
-        if (varId && menuItem.variations) {
-          const variation = menuItem.variations.find((v) => v.id === varId);
-          return {
-            menuItemId: itemId,
-            name: menuItem.name,
-            variationName: variation?.name,
-            price: variation?.price || menuItem.price,
-            quantity: qty,
-          };
+    return cart
+      .filter((entry) => entry.quantity > 0)
+      .map((entry) => {
+        const menuItem = content.menu.find((m) => m.id === entry.menuItemId)!;
+        const unitPrice = computeUnitPrice(menuItem, entry.selections);
+        const groups = menuItem.optionGroups || [];
+
+        // Build selections for the order
+        const selections: OrderItemSelection[] = [];
+        for (const group of groups) {
+          const selectedIds = entry.selections[group.id] || [];
+          if (selectedIds.length === 0) continue;
+          const choiceNames = selectedIds
+            .map((cid) => group.choices.find((c) => c.id === cid)?.name)
+            .filter(Boolean) as string[];
+          let addedPrice = 0;
+          if (group.pricingType === "addon") {
+            addedPrice = selectedIds.reduce((sum, cid) => {
+              const c = group.choices.find((ch) => ch.id === cid);
+              return sum + (c?.price || 0);
+            }, 0);
+          }
+          selections.push({ groupName: group.name, choiceNames, addedPrice });
         }
+
         return {
-          menuItemId: itemId,
+          menuItemId: entry.menuItemId,
           name: menuItem.name,
-          price: menuItem.price,
-          quantity: qty,
+          selections: selections.length > 0 ? selections : undefined,
+          price: unitPrice,
+          quantity: entry.quantity,
         };
       });
   }, [cart, content.menu]);

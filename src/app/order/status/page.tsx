@@ -111,16 +111,21 @@ function StatusContent() {
           className="text-left pt-4"
           style={{ borderTop: "1px dashed color-mix(in srgb, var(--theme-primary) 20%, transparent)" }}
         >
-          {(order.items || []).map((item, i) => (
-            <div key={i} className="flex justify-between text-sm py-1">
-              <span style={{ color: "var(--theme-text-secondary)" }}>
-                {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
-              </span>
-              <span style={{ color: "var(--theme-text-primary)" }}>
-                ฿{item.price * item.quantity}
-              </span>
-            </div>
-          ))}
+          {(order.items || []).map((item, i) => {
+            const selText = item.selections && item.selections.length > 0
+              ? item.selections.map((s) => s.choiceNames.join(", ")).filter(Boolean).join(" / ")
+              : item.variationName || "";
+            return (
+              <div key={i} className="flex justify-between text-sm py-1">
+                <span style={{ color: "var(--theme-text-secondary)" }}>
+                  {item.name}{selText ? ` (${selText})` : ""} x{item.quantity}
+                </span>
+                <span style={{ color: "var(--theme-text-primary)" }}>
+                  ฿{item.price * item.quantity}
+                </span>
+              </div>
+            );
+          })}
           <div
             className="flex justify-between font-bold text-sm pt-2 mt-2"
             style={{ borderTop: "1px dashed color-mix(in srgb, var(--theme-primary) 20%, transparent)", color: "var(--theme-primary)" }}

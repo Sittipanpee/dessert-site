@@ -368,15 +368,20 @@ function QueueDashboard() {
 
                   {/* Items */}
                   <div className="mb-2">
-                    {(order.items || []).map((item, i) => (
-                      <span
-                        key={i}
-                        className="text-xs mr-2"
-                        style={{ color: "var(--theme-text-secondary)" }}
-                      >
-                        {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
-                      </span>
-                    ))}
+                    {(order.items || []).map((item, i) => {
+                      const selText = item.selections && item.selections.length > 0
+                        ? item.selections.map((s) => s.choiceNames.join(", ")).filter(Boolean).join(" / ")
+                        : item.variationName || "";
+                      return (
+                        <span
+                          key={i}
+                          className="text-xs mr-2"
+                          style={{ color: "var(--theme-text-secondary)" }}
+                        >
+                          {item.name}{selText ? ` (${selText})` : ""} x{item.quantity}
+                        </span>
+                      );
+                    })}
                   </div>
 
                   {/* Price + payment */}
