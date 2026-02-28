@@ -60,7 +60,7 @@ export default function Footer({ content }: { content: SiteContent }) {
                   "var(--font-outfit), var(--font-noto-sans-thai), sans-serif",
               }}
             >
-              หวานละมุน
+              {content.shopName}
             </div>
             <p
               className="text-sm"
@@ -72,15 +72,21 @@ export default function Footer({ content }: { content: SiteContent }) {
 
           {/* Social icons */}
           <div className="flex items-center gap-3">
-            <SocialLink href={content.footer.facebook} label="Facebook">
-              <Facebook size={20} />
-            </SocialLink>
-            <SocialLink href={content.footer.instagram} label="Instagram">
-              <Instagram size={20} />
-            </SocialLink>
-            <SocialLink href={content.footer.tiktok} label="TikTok">
-              <TikTokIcon size={20} />
-            </SocialLink>
+            {content.footer.facebook && (
+              <SocialLink href={content.footer.facebook} label="Facebook">
+                <Facebook size={20} />
+              </SocialLink>
+            )}
+            {content.footer.instagram && (
+              <SocialLink href={content.footer.instagram} label="Instagram">
+                <Instagram size={20} />
+              </SocialLink>
+            )}
+            {content.footer.tiktok && (
+              <SocialLink href={content.footer.tiktok} label="TikTok">
+                <TikTokIcon size={20} />
+              </SocialLink>
+            )}
           </div>
 
           {/* Copyright */}
@@ -88,7 +94,7 @@ export default function Footer({ content }: { content: SiteContent }) {
             className="text-sm text-center sm:text-right"
             style={{ color: "rgba(255, 255, 255, 0.5)" }}
           >
-            &copy; 2026 หวานละมุน. All rights reserved.
+            &copy; 2026 {content.shopName}. All rights reserved.
           </p>
         </div>
       </div>

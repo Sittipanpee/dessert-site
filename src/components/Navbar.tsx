@@ -10,7 +10,7 @@ const navLinks = [
   { label: "ติดต่อ", href: "#contact" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ shopName }: { shopName: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -48,7 +48,7 @@ export default function Navbar() {
             fontFamily: "var(--font-outfit), var(--font-noto-sans-thai), sans-serif",
           }}
         >
-          หวานละมุน
+          {shopName}
         </a>
 
         {/* Desktop nav links */}

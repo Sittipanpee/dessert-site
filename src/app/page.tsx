@@ -36,7 +36,7 @@ export default function Home() {
     <>
       <PandanBackground />
       <div className="relative" style={{ zIndex: 1 }}>
-        <Navbar />
+        <Navbar shopName={content.shopName} />
         <HeroSection content={content} />
         <MenuSection content={content} />
         <AboutSection content={content} />

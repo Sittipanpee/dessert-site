@@ -67,6 +67,8 @@ function QueueDashboard() {
     prevOrderCountRef.current = currentCount;
   }, [orders.length, soundEnabled]);
   const [promptPay, setPromptPay] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
   const [minutesPer, setMinutesPer] = useState("");
   const [autoReset, setAutoReset] = useState("");
   const [slipModal, setSlipModal] = useState<string | null>(null);
@@ -77,6 +79,8 @@ function QueueDashboard() {
   const startEdit = () => {
     if (!config) return;
     setPromptPay(config.promptPayNumber);
+    setAccountName(config.accountName);
+    setAccountNumber(config.accountNumber);
     setMinutesPer(String(config.minutesPerQueue));
     setAutoReset(config.autoResetTime);
     setEditing(true);
@@ -87,6 +91,8 @@ function QueueDashboard() {
     await save({
       ...config,
       promptPayNumber: promptPay,
+      accountName,
+      accountNumber,
       minutesPerQueue: parseInt(minutesPer) || 5,
       autoResetTime: autoReset,
     });
@@ -202,6 +208,18 @@ function QueueDashboard() {
                 </strong>
               </p>
               <p className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>
+                ชื่อบัญชี:{" "}
+                <strong style={{ color: "var(--theme-text-primary)" }}>
+                  {config?.accountName || "-"}
+                </strong>
+              </p>
+              <p className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>
+                เลขบัญชี:{" "}
+                <strong style={{ color: "var(--theme-text-primary)" }}>
+                  {config?.accountNumber || "-"}
+                </strong>
+              </p>
+              <p className="text-sm" style={{ color: "var(--theme-text-secondary)" }}>
                 นาทีต่อคิว:{" "}
                 <strong style={{ color: "var(--theme-text-primary)" }}>
                   {config?.minutesPerQueue || 5} นาที
@@ -231,6 +249,28 @@ function QueueDashboard() {
                   className="admin-input"
                   value={promptPay}
                   onChange={(e) => setPromptPay(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: "var(--theme-text-secondary)" }}>
+                  ชื่อบัญชี
+                </label>
+                <input
+                  className="admin-input"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="ชื่อ-นามสกุล"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: "var(--theme-text-secondary)" }}>
+                  เลขบัญชี
+                </label>
+                <input
+                  className="admin-input"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="xxx-x-xxxxx-x"
                 />
               </div>
               <div>

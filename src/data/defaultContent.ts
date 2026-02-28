@@ -14,6 +14,7 @@ export interface Branch {
 }
 
 export interface SiteContent {
+  shopName: string;
   hero: {
     heading: string;
     subtext: string;
@@ -41,6 +42,7 @@ export interface SiteContent {
 }
 
 export const defaultContent: SiteContent = {
+  shopName: "หวานละมุน",
   hero: {
     heading: "หวานละมุน ทุกคำคือความสุข",
     subtext: "ขนมไทยสไตล์โมเดิร์น ที่ใส่ใจทุกรายละเอียด",

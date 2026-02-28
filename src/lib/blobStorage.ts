@@ -20,6 +20,8 @@ export async function getQueueConfig(): Promise<QueueConfig> {
 
   return {
     promptPayNumber: data.prompt_pay_number,
+    accountName: data.account_name || "",
+    accountNumber: data.account_number || "",
     minutesPerQueue: data.minutes_per_queue,
     autoResetTime: data.auto_reset_time,
     currentDayKey: data.current_day_key,
@@ -32,6 +34,8 @@ export async function saveQueueConfig(config: QueueConfig): Promise<QueueConfig>
     .from("queue_config")
     .update({
       prompt_pay_number: config.promptPayNumber,
+      account_name: config.accountName || "",
+      account_number: config.accountNumber || "",
       minutes_per_queue: config.minutesPerQueue,
       auto_reset_time: config.autoResetTime,
       current_day_key: config.currentDayKey,

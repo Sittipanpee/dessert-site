@@ -20,14 +20,18 @@ export interface Order {
 
 export interface QueueConfig {
   promptPayNumber: string;
+  accountName: string;
+  accountNumber: string;
   minutesPerQueue: number;
-  autoResetTime: string; // "HH:mm" format
-  currentDayKey: string; // "YYYY-MM-DD"
+  autoResetTime: string;
+  currentDayKey: string;
   nextQueueNumber: number;
 }
 
 export const defaultQueueConfig: QueueConfig = {
   promptPayNumber: "0812345678",
+  accountName: "",
+  accountNumber: "",
   minutesPerQueue: 5,
   autoResetTime: "06:00",
   currentDayKey: "",

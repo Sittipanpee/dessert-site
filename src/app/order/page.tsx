@@ -356,6 +356,7 @@ function PaymentStep({
   const [slipFile, setSlipFile] = useState<File | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const { config } = useQueueConfig();
 
   // Generate PromptPay QR
@@ -496,6 +497,22 @@ function PaymentStep({
           <p className="text-sm font-medium mb-4" style={{ color: "var(--theme-text-secondary)" }}>
             สแกนเพื่อชำระ ฿{total}
           </p>
+          {config?.accountName && (
+            <p className="text-sm font-medium mt-2" style={{ color: "var(--theme-text-primary)" }}>
+              {config.accountName}
+            </p>
+          )}
+          {config?.accountNumber && (
+            <p className="text-xs mt-1" style={{ color: "var(--theme-text-secondary)" }}>
+              เลขบัญชี: {config.accountNumber}
+            </p>
+          )}
+          {qrDataUrl && (
+            <a href={qrDataUrl} download="promptpay-qr.png" className="glass-cta-secondary inline-flex mt-2" style={{ fontSize: "13px", padding: "8px 16px" }}>
+              <Download size={14} />
+              บันทึก QR
+            </a>
+          )}
 
           {/* Upload slip */}
           <label
@@ -522,6 +539,24 @@ function PaymentStep({
         </div>
       )}
 
+      <label className="flex items-start gap-3 mb-5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={accepted}
+          onChange={(e) => setAccepted(e.target.checked)}
+          className="w-5 h-5 mt-0.5 rounded accent-emerald-600 shrink-0"
+        />
+        <span className="text-xs leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
+          ข้าพเจ้ายืนยันว่าออเดอร์นี้เป็นการจองคิวหน้าร้าน/ตลาดนัดเท่านั้น ไม่มีบริการเดลิเวอรี่
+        </span>
+      </label>
+
+      {method === "promptpay" && !slipFile && (
+        <p className="text-xs text-center mb-3" style={{ color: "#E8668B" }}>
+          กรุณาแนบสลิปก่อนสั่ง
+        </p>
+      )}
+
       <div className="flex gap-3">
         <button onClick={onBack} className="glass-cta-secondary flex-1">
           <ArrowLeft size={16} />
@@ -529,9 +564,9 @@ function PaymentStep({
         </button>
         <button
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || !accepted || (method === "promptpay" && !slipFile)}
           className="glass-cta flex-1"
-          style={{ opacity: submitting ? 0.6 : 1 }}
+          style={{ opacity: (submitting || !accepted || (method === "promptpay" && !slipFile)) ? 0.6 : 1 }}
         >
           {submitting ? "กำลังสั่ง..." : "สั่งเลย!"}
         </button>
@@ -546,6 +581,7 @@ function TicketStep({ order }: { order: Order }) {
   const { order: liveOrder } = useOrderStatus(order.id);
   const queuesAhead = useQueuesAhead(order.id);
   const { config } = useQueueConfig();
+  const { content } = useContent();
   const ticketRef = useRef<HTMLDivElement>(null);
   const [ticketQrUrl, setTicketQrUrl] = useState<string | null>(null);
 
@@ -575,15 +611,17 @@ function TicketStep({ order }: { order: Order }) {
     }
   }, []);
 
-  // Notify when ready
+  // Notify ONCE when ready
+  const notifiedRef = useRef(false);
   useEffect(() => {
-    if (isReady && "Notification" in window && Notification.permission === "granted") {
-      new Notification("ถึงคิวแล้ว! 🎉", {
+    if (isReady && !notifiedRef.current && "Notification" in window && Notification.permission === "granted") {
+      notifiedRef.current = true;
+      new Notification(`${content.shopName} - ถึงคิวแล้ว!`, {
         body: `คิว ${current.queueNumber} - มารับของได้เลย`,
         icon: "/favicon.ico",
       });
     }
-  }, [isReady, current.queueNumber]);
+  }, [isReady, current.queueNumber, content.shopName]);
 
   const handleSaveTicket = async () => {
     if (!ticketRef.current) return;
@@ -748,6 +786,27 @@ function TicketStep({ order }: { order: Order }) {
         <Download size={18} />
         บันทึกบัตรคิว
       </button>
+
+      {/* Add to Home Screen tip */}
+      <div className="glass-card p-4 mb-3 text-left" style={{ cursor: "default" }}>
+        <p className="text-sm font-semibold mb-2" style={{ color: "var(--theme-text-primary)" }}>
+          💡 รับแจ้งเตือนเมื่อถึงคิว
+        </p>
+        <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--theme-text-secondary)" }}>
+          เพิ่มเว็บนี้ลงหน้าจอโฮม แล้วเปิดจากไอคอนที่หน้าจอ จะได้รับการแจ้งเตือนเมื่อถึงคิว
+        </p>
+        <div className="flex flex-col gap-2 text-xs" style={{ color: "var(--theme-text-secondary)" }}>
+          <div className="flex items-start gap-2">
+            <span className="font-bold shrink-0" style={{ color: "var(--theme-primary)" }}>iPhone:</span>
+            <span>กด <strong>Share ⬆️</strong> → <strong>Add to Home Screen</strong></span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="font-bold shrink-0" style={{ color: "var(--theme-primary)" }}>Android:</span>
+            <span>กดเมนู <strong>⋮</strong> → <strong>เพิ่มไปที่หน้าจอหลัก</strong></span>
+          </div>
+        </div>
+      </div>
+
       <a href="/" className="glass-cta-secondary inline-flex w-full justify-center">
         กลับหน้าหลัก
       </a>

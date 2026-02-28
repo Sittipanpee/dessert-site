@@ -223,6 +223,20 @@ function AdminDashboard() {
           </div>
         </SectionCard>
 
+        <SectionCard title="ชื่อร้าน">
+          <div className="flex flex-col gap-4">
+            <label className="text-sm font-medium" style={{ color: "var(--theme-text-secondary)" }}>
+              ชื่อร้าน (แสดงที่ Navbar, Footer, การแจ้งเตือน)
+            </label>
+            <input
+              className="admin-input"
+              value={draft.shopName}
+              onChange={(e) => setDraft((d) => ({ ...d, shopName: e.target.value }))}
+              placeholder="หวานละมุน"
+            />
+          </div>
+        </SectionCard>
+
         {/* Hero */}
         <SectionCard title="Hero Section">
           <div className="flex flex-col gap-4">
