@@ -333,7 +333,7 @@ function QueueDashboard() {
 
                   {/* Items */}
                   <div className="mb-2">
-                    {order.items.map((item, i) => (
+                    {(order.items || []).map((item, i) => (
                       <span
                         key={i}
                         className="text-xs mr-2"

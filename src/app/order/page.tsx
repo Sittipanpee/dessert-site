@@ -660,7 +660,7 @@ function TicketStep({ order }: { order: Order }) {
             borderTop: "1px dashed color-mix(in srgb, var(--theme-primary) 20%, transparent)",
           }}
         >
-          {current.items.map((item, i) => (
+          {(current.items || []).map((item, i) => (
             <div
               key={i}
               className="flex justify-between text-sm py-1"

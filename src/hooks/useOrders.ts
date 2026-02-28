@@ -14,8 +14,8 @@ export function useOrderStatus(orderId: string | null) {
     try {
       const res = await fetch(`/api/orders/${orderId}`);
       if (res.ok) {
-        const data: Order = await res.json();
-        setOrder(data);
+        const data = await res.json();
+        if (data && data.id) setOrder(data);
       }
     } catch {
       // ignore
@@ -44,8 +44,8 @@ export function useAllOrders() {
     try {
       const res = await fetch("/api/orders");
       if (res.ok) {
-        const data: Order[] = await res.json();
-        setOrders(data);
+        const data = await res.json();
+        if (Array.isArray(data)) setOrders(data);
       }
     } catch {
       // ignore
@@ -71,7 +71,10 @@ export function useQueueConfig() {
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/queue-config");
-      if (res.ok) setConfig(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.minutesPerQueue !== undefined) setConfig(data);
+      }
     } catch {
       // ignore
     }
@@ -82,14 +85,18 @@ export function useQueueConfig() {
   }, [load]);
 
   const save = useCallback(async (updated: QueueConfig) => {
-    const res = await fetch("/api/queue-config", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated),
-    });
-    if (res.ok) {
-      const saved = await res.json();
-      setConfig(saved);
+    try {
+      const res = await fetch("/api/queue-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        if (saved && saved.minutesPerQueue !== undefined) setConfig(saved);
+      }
+    } catch {
+      // ignore
     }
   }, []);
 
@@ -109,8 +116,10 @@ export function useQueuesAhead(orderId: string | null) {
       try {
         const res = await fetch("/api/orders");
         if (!res.ok) return;
-        const allOrders: Order[] = await res.json();
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
 
+        const allOrders: Order[] = data;
         const myOrder = allOrders.find((o) => o.id === orderId);
         if (!myOrder || myOrder.status === "ready") {
           setQueuesAhead(0);
@@ -123,7 +132,6 @@ export function useQueuesAhead(orderId: string | null) {
             o.queueNumber < myOrder.queueNumber
         ).length;
 
-        // Only decrease, never increase (prevents flicker)
         const newAhead = Math.min(ahead, prevAhead.current || ahead);
         prevAhead.current = newAhead;
         setQueuesAhead(newAhead);

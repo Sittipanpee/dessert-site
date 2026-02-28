@@ -11,16 +11,22 @@ function ordersKey(dayKey?: string): string {
 
 const CONFIG_KEY = "queue-config.json";
 
+// Helper: read blob content by listing prefix and fetching the downloadUrl
+async function readBlobJson<T>(prefix: string): Promise<T | null> {
+  const { blobs } = await list({ prefix });
+  if (blobs.length === 0) return null;
+  const url = blobs[0].downloadUrl;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  return res.json();
+}
+
 // ─── Queue Config ───
 
 export async function getQueueConfig(): Promise<QueueConfig> {
   try {
-    const { blobs } = await list({ prefix: CONFIG_KEY });
-    if (blobs.length > 0) {
-      const res = await fetch(blobs[0].url);
-      const config: QueueConfig = await res.json();
-      return config;
-    }
+    const config = await readBlobJson<QueueConfig>(CONFIG_KEY);
+    if (config) return config;
   } catch {
     // fall through to default
   }
@@ -28,7 +34,6 @@ export async function getQueueConfig(): Promise<QueueConfig> {
 }
 
 export async function saveQueueConfig(config: QueueConfig): Promise<QueueConfig> {
-  // delete old blob first
   try {
     const { blobs } = await list({ prefix: CONFIG_KEY });
     for (const b of blobs) await del(b.url);
@@ -48,12 +53,8 @@ export async function saveQueueConfig(config: QueueConfig): Promise<QueueConfig>
 export async function getOrders(dayKey?: string): Promise<Order[]> {
   const key = ordersKey(dayKey);
   try {
-    const { blobs } = await list({ prefix: key });
-    if (blobs.length > 0) {
-      const res = await fetch(blobs[0].url);
-      const orders: Order[] = await res.json();
-      return orders;
-    }
+    const orders = await readBlobJson<Order[]>(key);
+    if (orders && Array.isArray(orders)) return orders;
   } catch {
     // fall through
   }
@@ -62,7 +63,6 @@ export async function getOrders(dayKey?: string): Promise<Order[]> {
 
 export async function saveOrders(orders: Order[], dayKey?: string): Promise<void> {
   const key = ordersKey(dayKey);
-  // delete old
   try {
     const { blobs } = await list({ prefix: key });
     for (const b of blobs) await del(b.url);
@@ -82,7 +82,6 @@ export async function createOrder(
   const config = await getQueueConfig();
   const day = todayKey();
 
-  // Auto-reset if day changed
   if (config.currentDayKey !== day) {
     config.currentDayKey = day;
     config.nextQueueNumber = 1;
@@ -107,7 +106,6 @@ export async function createOrder(
 }
 
 export async function getOrderById(id: string): Promise<Order | null> {
-  // Extract day from id format: "YYYY-MM-DD-queue-random"
   const dayKey = id.slice(0, 10);
   const orders = await getOrders(dayKey);
   return orders.find((o) => o.id === id) || null;
@@ -137,7 +135,7 @@ export async function uploadProof(file: File, orderId: string): Promise<string> 
     contentType: file.type,
     addRandomSuffix: false,
   });
-  return blob.url;
+  return blob.downloadUrl;
 }
 
 // ─── Queue reset ───

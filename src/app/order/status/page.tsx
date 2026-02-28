@@ -111,7 +111,7 @@ function StatusContent() {
           className="text-left pt-4"
           style={{ borderTop: "1px dashed color-mix(in srgb, var(--theme-primary) 20%, transparent)" }}
         >
-          {order.items.map((item, i) => (
+          {(order.items || []).map((item, i) => (
             <div key={i} className="flex justify-between text-sm py-1">
               <span style={{ color: "var(--theme-text-secondary)" }}>
                 {item.name} x{item.quantity}
