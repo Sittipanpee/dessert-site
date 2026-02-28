@@ -568,6 +568,23 @@ function TicketStep({ order }: { order: Order }) {
     gen();
   }, [order.id]);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Notify when ready
+  useEffect(() => {
+    if (isReady && "Notification" in window && Notification.permission === "granted") {
+      new Notification("ถึงคิวแล้ว! 🎉", {
+        body: `คิว ${current.queueNumber} - มารับของได้เลย`,
+        icon: "/favicon.ico",
+      });
+    }
+  }, [isReady, current.queueNumber]);
+
   const handleSaveTicket = async () => {
     if (!ticketRef.current) return;
     try {
@@ -576,13 +593,35 @@ function TicketStep({ order }: { order: Order }) {
         backgroundColor: "#F7FBF8",
         scale: 2,
       });
-      const link = document.createElement("a");
-      link.download = `queue-${current.queueNumber}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
+
+      // Try Web Share API first (works on iOS)
+      if (typeof navigator.share === "function" && typeof navigator.canShare === "function") {
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const file = new File([blob], `queue-${current.queueNumber}.png`, {
+            type: "image/png",
+          });
+          try {
+            await navigator.share({ files: [file] });
+          } catch {
+            // User cancelled or not supported — fallback below
+            fallbackDownload(canvas);
+          }
+        }, "image/png");
+      } else {
+        fallbackDownload(canvas);
+      }
     } catch {
       // ignore
     }
+  };
+
+  const fallbackDownload = (canvas: HTMLCanvasElement) => {
+    // For desktop browsers
+    const link = document.createElement("a");
+    link.download = `queue-${current.queueNumber}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
   };
 
   return (

@@ -12,7 +12,7 @@ export function useOrderStatus(orderId: string | null) {
   const poll = useCallback(async () => {
     if (!orderId) return;
     try {
-      const res = await fetch(`/api/orders/${orderId}`);
+      const res = await fetch(`/api/orders/${orderId}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (data && data.id) setOrder(data);
@@ -42,7 +42,7 @@ export function useAllOrders() {
 
   const poll = useCallback(async () => {
     try {
-      const res = await fetch("/api/orders");
+      const res = await fetch("/api/orders", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) setOrders(data);
@@ -70,7 +70,7 @@ export function useQueueConfig() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/queue-config");
+      const res = await fetch("/api/queue-config", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (data && data.minutesPerQueue !== undefined) setConfig(data);
@@ -114,7 +114,7 @@ export function useQueuesAhead(orderId: string | null) {
 
     const poll = async () => {
       try {
-        const res = await fetch("/api/orders");
+        const res = await fetch("/api/orders", { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
         if (!Array.isArray(data)) return;

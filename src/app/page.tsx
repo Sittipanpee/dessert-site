@@ -11,6 +11,7 @@ import AboutSection from "@/components/AboutSection";
 import BranchesSection from "@/components/BranchesSection";
 import CtaSection from "@/components/CtaSection";
 import Footer from "@/components/Footer";
+import MyQueueFloat from "@/components/MyQueueFloat";
 
 export default function Home() {
   const { content, isLoaded } = useContent();
@@ -42,6 +43,7 @@ export default function Home() {
         <BranchesSection content={content} />
         <CtaSection content={content} />
         <Footer content={content} />
+        <MyQueueFloat />
       </div>
     </>
   );
