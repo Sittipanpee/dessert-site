@@ -19,6 +19,9 @@ import {
   Ticket,
   User,
   Phone,
+  Bell,
+  Smartphone,
+  Share2,
 } from "lucide-react";
 
 const LOCAL_ORDER_KEY = "dessert-last-order-id";
@@ -578,7 +581,7 @@ function PaymentStep({
           className="w-5 h-5 mt-0.5 rounded accent-emerald-600 shrink-0"
         />
         <span className="text-xs leading-relaxed" style={{ color: "var(--theme-text-secondary)" }}>
-          ข้าพเจ้ายืนยันว่าออเดอร์นี้เป็นการจองคิวหน้าร้าน/ตลาดนัดเท่านั้น ไม่มีบริการเดลิเวอรี่
+          รับที่ร้าน/ตลาดนัดเท่านั้นนะคะ ไม่มีบริการส่ง 🙏
         </span>
       </label>
 
@@ -820,20 +823,78 @@ function TicketStep({ order }: { order: Order }) {
 
       {/* Add to Home Screen tip */}
       <div className="glass-card p-4 mb-3 text-left" style={{ cursor: "default" }}>
-        <p className="text-sm font-semibold mb-2" style={{ color: "var(--theme-text-primary)" }}>
-          💡 รับแจ้งเตือนเมื่อถึงคิว
-        </p>
-        <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--theme-text-secondary)" }}>
-          เพิ่มเว็บนี้ลงหน้าจอโฮม แล้วเปิดจากไอคอนที่หน้าจอ จะได้รับการแจ้งเตือนเมื่อถึงคิว
-        </p>
-        <div className="flex flex-col gap-2 text-xs" style={{ color: "var(--theme-text-secondary)" }}>
-          <div className="flex items-start gap-2">
-            <span className="font-bold shrink-0" style={{ color: "var(--theme-primary)" }}>iPhone:</span>
-            <span>กด <strong>Share ⬆️</strong> → <strong>Add to Home Screen</strong></span>
+        <div className="flex items-center gap-2 mb-3">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "color-mix(in srgb, var(--theme-primary) 12%, transparent)" }}
+          >
+            <Bell size={16} style={{ color: "var(--theme-primary)" }} />
           </div>
-          <div className="flex items-start gap-2">
-            <span className="font-bold shrink-0" style={{ color: "var(--theme-primary)" }}>Android:</span>
-            <span>กดเมนู <strong>⋮</strong> → <strong>เพิ่มไปที่หน้าจอหลัก</strong></span>
+          <p className="text-sm font-semibold" style={{ color: "var(--theme-text-primary)" }}>
+            รับแจ้งเตือนเมื่อถึงคิว
+          </p>
+        </div>
+        <p className="text-xs leading-relaxed mb-4" style={{ color: "var(--theme-text-secondary)" }}>
+          เพิ่มเว็บนี้ลงหน้าจอโฮม แล้วเปิดจากไอคอน จะได้รับแจ้งเตือนอัตโนมัติ
+        </p>
+
+        {/* iPhone steps */}
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Smartphone size={14} style={{ color: "var(--theme-primary)" }} />
+            <span className="text-xs font-bold" style={{ color: "var(--theme-primary)" }}>iPhone / Safari</span>
+          </div>
+          <div className="flex items-start gap-3 ml-1">
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}>
+                <Share2 size={14} style={{ color: "var(--theme-primary)" }} />
+              </div>
+              <span className="text-[9px]" style={{ color: "var(--theme-text-secondary)" }}>แชร์</span>
+            </div>
+            <ArrowRight size={14} className="mt-1.5 shrink-0" style={{ color: "var(--theme-text-secondary)" }} />
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}>
+                <Plus size={14} style={{ color: "var(--theme-primary)" }} />
+              </div>
+              <span className="text-[9px] text-center leading-tight" style={{ color: "var(--theme-text-secondary)" }}>เพิ่มไปที่<br />หน้าจอโฮม</span>
+            </div>
+            <ArrowRight size={14} className="mt-1.5 shrink-0" style={{ color: "var(--theme-text-secondary)" }} />
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}>
+                <CheckCircle size={14} style={{ color: "var(--theme-primary)" }} />
+              </div>
+              <span className="text-[9px]" style={{ color: "var(--theme-text-secondary)" }}>เพิ่ม</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Android steps */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Smartphone size={14} style={{ color: "var(--theme-primary)" }} />
+            <span className="text-xs font-bold" style={{ color: "var(--theme-primary)" }}>Android / Chrome</span>
+          </div>
+          <div className="flex items-start gap-3 ml-1">
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}>
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="var(--theme-primary)" strokeWidth={2.5} strokeLinecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </div>
+              <span className="text-[9px]" style={{ color: "var(--theme-text-secondary)" }}>เมนู ⋮</span>
+            </div>
+            <ArrowRight size={14} className="mt-1.5 shrink-0" style={{ color: "var(--theme-text-secondary)" }} />
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}>
+                <Plus size={14} style={{ color: "var(--theme-primary)" }} />
+              </div>
+              <span className="text-[9px] text-center leading-tight" style={{ color: "var(--theme-text-secondary)" }}>เพิ่มไปที่<br />หน้าจอหลัก</span>
+            </div>
+            <ArrowRight size={14} className="mt-1.5 shrink-0" style={{ color: "var(--theme-text-secondary)" }} />
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}>
+                <CheckCircle size={14} style={{ color: "var(--theme-primary)" }} />
+              </div>
+              <span className="text-[9px]" style={{ color: "var(--theme-text-secondary)" }}>ติดตั้ง</span>
+            </div>
           </div>
         </div>
       </div>
