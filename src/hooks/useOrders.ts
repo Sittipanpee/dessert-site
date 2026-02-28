@@ -60,7 +60,26 @@ export function useAllOrders() {
     return () => clearInterval(interval);
   }, [poll]);
 
-  return { orders, loading, refetch: poll };
+  // Optimistic update: instantly change local state, fire API in background
+  const optimisticUpdate = useCallback(
+    (orderId: string, updates: Partial<Order>) => {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o))
+      );
+      // Fire API in background (don't await)
+      fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      }).catch(() => {
+        // Revert on failure by refetching
+        poll();
+      });
+    },
+    [poll]
+  );
+
+  return { orders, loading, refetch: poll, optimisticUpdate };
 }
 
 // ─── Queue config ───

@@ -52,7 +52,7 @@ function playNotificationSound() {
 
 function QueueDashboard() {
   useTheme();
-  const { orders, refetch } = useAllOrders();
+  const { orders, refetch, optimisticUpdate } = useAllOrders();
   const { config, save } = useQueueConfig();
   const [editing, setEditing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -99,13 +99,8 @@ function QueueDashboard() {
     refetch();
   };
 
-  const handleMarkReady = async (order: Order) => {
-    await fetch(`/api/orders/${order.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "ready" }),
-    });
-    refetch();
+  const handleMarkReady = (order: Order) => {
+    optimisticUpdate(order.id, { status: "ready" });
   };
 
   return (
