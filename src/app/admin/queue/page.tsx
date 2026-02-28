@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { LoginScreen, SectionCard } from "@/components/AdminShared";
 import { useAllOrders, useQueueConfig } from "@/hooks/useOrders";
 import { useTheme } from "@/hooks/useTheme";
@@ -13,13 +13,59 @@ import {
   Save,
   Image as ImageIcon,
   Phone,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
+
+// Generate a notification beep using Web Audio API
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext();
+    // First beep
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.frequency.value = 880;
+    osc1.type = "sine";
+    gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.3);
+    // Second beep (higher)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.frequency.value = 1100;
+    osc2.type = "sine";
+    gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.45);
+    // Cleanup
+    setTimeout(() => ctx.close(), 1000);
+  } catch {
+    // Audio not available
+  }
+}
 
 function QueueDashboard() {
   useTheme();
   const { orders, refetch } = useAllOrders();
   const { config, save } = useQueueConfig();
   const [editing, setEditing] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const prevOrderCountRef = useRef<number | null>(null);
+
+  // Play sound when new orders come in
+  useEffect(() => {
+    const currentCount = orders.length;
+    if (prevOrderCountRef.current !== null && currentCount > prevOrderCountRef.current && soundEnabled) {
+      playNotificationSound();
+    }
+    prevOrderCountRef.current = currentCount;
+  }, [orders.length, soundEnabled]);
   const [promptPay, setPromptPay] = useState("");
   const [minutesPer, setMinutesPer] = useState("");
   const [autoReset, setAutoReset] = useState("");
@@ -92,14 +138,29 @@ function QueueDashboard() {
         >
           จัดการคิว
         </span>
-        <button
-          onClick={handleReset}
-          className="flex items-center gap-1 text-sm font-medium"
-          style={{ color: "#E8668B" }}
-        >
-          <RotateCcw size={16} />
-          รีเซ็ต
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSoundEnabled((v) => !v)}
+            className="flex items-center justify-center w-8 h-8 rounded-lg"
+            style={{
+              color: soundEnabled ? "var(--theme-primary)" : "var(--theme-text-secondary)",
+              background: soundEnabled
+                ? "color-mix(in srgb, var(--theme-primary) 10%, transparent)"
+                : "transparent",
+            }}
+            title={soundEnabled ? "ปิดเสียง" : "เปิดเสียง"}
+          >
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-1 text-sm font-medium"
+            style={{ color: "#E8668B" }}
+          >
+            <RotateCcw size={16} />
+            รีเซ็ต
+          </button>
+        </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-5 pt-6">

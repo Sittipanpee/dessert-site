@@ -364,13 +364,14 @@ function PaymentStep({
 
     async function generateQR() {
       try {
-        const promptpayQR = (await import("promptpay-qr")).default;
-        const QRCode = (await import("qrcode")).default;
+        const promptpayMod = await import("promptpay-qr");
+        const promptpayQR = promptpayMod.default || promptpayMod;
+        const { toDataURL } = await import("qrcode");
         const payload = promptpayQR(config!.promptPayNumber, { amount: total });
-        const url = await QRCode.toDataURL(payload, { width: 280, margin: 2 });
+        const url = await toDataURL(payload, { width: 280, margin: 2 });
         setQrDataUrl(url);
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error("PromptPay QR generation failed:", err);
       }
     }
     generateQR();
@@ -556,12 +557,12 @@ function TicketStep({ order }: { order: Order }) {
   useEffect(() => {
     async function gen() {
       try {
-        const QRCode = (await import("qrcode")).default;
+        const { toDataURL } = await import("qrcode");
         const statusUrl = `${window.location.origin}/order/status?id=${order.id}`;
-        const url = await QRCode.toDataURL(statusUrl, { width: 160, margin: 1 });
+        const url = await toDataURL(statusUrl, { width: 160, margin: 1 });
         setTicketQrUrl(url);
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error("Ticket QR generation failed:", err);
       }
     }
     gen();
