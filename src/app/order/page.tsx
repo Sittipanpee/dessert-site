@@ -551,7 +551,7 @@ function TicketStep({ order }: { order: Order }) {
 
   const current = liveOrder || order;
   const isReady = current.status === "ready";
-  const estimatedMin = queuesAhead * (config?.minutesPerQueue || 5);
+  const estimatedMin = (queuesAhead + 1) * (config?.minutesPerQueue || 5);
 
   // Generate QR code pointing to status page
   useEffect(() => {
@@ -648,7 +648,7 @@ function TicketStep({ order }: { order: Order }) {
           >
             <Clock size={16} />
             <span>
-              คิวข้างหน้า: {queuesAhead} คิว (~{estimatedMin} นาที)
+              รออีก ~{estimatedMin} นาที ({queuesAhead} คิวข้างหน้า)
             </span>
           </div>
         )}

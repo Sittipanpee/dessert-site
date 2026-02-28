@@ -2,7 +2,7 @@ import { put, list, del } from "@vercel/blob";
 import { Order, QueueConfig, defaultQueueConfig } from "@/data/orderTypes";
 
 function todayKey(): string {
-  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  return new Date().toISOString().slice(0, 10);
 }
 
 function ordersKey(dayKey?: string): string {
@@ -11,14 +11,34 @@ function ordersKey(dayKey?: string): string {
 
 const CONFIG_KEY = "queue-config.json";
 
-// Helper: read blob content by listing prefix and fetching the downloadUrl
+// Read blob: list by prefix, take most recent (last), fetch it
+// Also clean up older duplicates in background
 async function readBlobJson<T>(prefix: string): Promise<T | null> {
   const { blobs } = await list({ prefix });
   if (blobs.length === 0) return null;
-  const url = blobs[0].downloadUrl;
-  const res = await fetch(url);
+
+  // blobs sorted by uploadedAt asc → last = newest
+  const latest = blobs[blobs.length - 1];
+
+  // Clean up older duplicates (fire-and-forget)
+  if (blobs.length > 1) {
+    Promise.all(
+      blobs.slice(0, -1).map((b) => del(b.url).catch(() => {}))
+    ).catch(() => {});
+  }
+
+  const res = await fetch(latest.downloadUrl);
   if (!res.ok) return null;
   return res.json();
+}
+
+// Write blob: just put (no delete first — much faster)
+async function writeBlobJson(key: string, data: unknown): Promise<void> {
+  await put(key, JSON.stringify(data), {
+    access: "public",
+    contentType: "application/json",
+    addRandomSuffix: false,
+  });
 }
 
 // ─── Queue Config ───
@@ -28,32 +48,21 @@ export async function getQueueConfig(): Promise<QueueConfig> {
     const config = await readBlobJson<QueueConfig>(CONFIG_KEY);
     if (config) return config;
   } catch {
-    // fall through to default
+    // fall through
   }
   return { ...defaultQueueConfig, currentDayKey: todayKey() };
 }
 
 export async function saveQueueConfig(config: QueueConfig): Promise<QueueConfig> {
-  try {
-    const { blobs } = await list({ prefix: CONFIG_KEY });
-    for (const b of blobs) await del(b.url);
-  } catch {
-    // ignore
-  }
-  await put(CONFIG_KEY, JSON.stringify(config), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-  });
+  await writeBlobJson(CONFIG_KEY, config);
   return config;
 }
 
 // ─── Orders ───
 
 export async function getOrders(dayKey?: string): Promise<Order[]> {
-  const key = ordersKey(dayKey);
   try {
-    const orders = await readBlobJson<Order[]>(key);
+    const orders = await readBlobJson<Order[]>(ordersKey(dayKey));
     if (orders && Array.isArray(orders)) return orders;
   } catch {
     // fall through
@@ -62,18 +71,7 @@ export async function getOrders(dayKey?: string): Promise<Order[]> {
 }
 
 export async function saveOrders(orders: Order[], dayKey?: string): Promise<void> {
-  const key = ordersKey(dayKey);
-  try {
-    const { blobs } = await list({ prefix: key });
-    for (const b of blobs) await del(b.url);
-  } catch {
-    // ignore
-  }
-  await put(key, JSON.stringify(orders), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-  });
+  await writeBlobJson(ordersKey(dayKey), orders);
 }
 
 export async function createOrder(
@@ -96,11 +94,11 @@ export async function createOrder(
   };
 
   config.nextQueueNumber += 1;
-  await saveQueueConfig(config);
 
+  // Save config and orders in parallel
   const orders = await getOrders(day);
   orders.push(newOrder);
-  await saveOrders(orders, day);
+  await Promise.all([saveQueueConfig(config), saveOrders(orders, day)]);
 
   return newOrder;
 }
