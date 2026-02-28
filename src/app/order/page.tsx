@@ -85,6 +85,11 @@ function MyQueueBanner() {
 
 // ─── Step 1: Menu Selection ───
 
+// Cart key: "itemId" (no variation) or "itemId:varId" (with variation)
+function cartKey(itemId: string, varId?: string) {
+  return varId ? `${itemId}:${varId}` : itemId;
+}
+
 function MenuStep({
   menu,
   cart,
@@ -96,10 +101,12 @@ function MenuStep({
   setCart: (c: Record<string, number>) => void;
   onNext: () => void;
 }) {
-  const total = menu.reduce(
-    (sum, item) => sum + (cart[item.id] || 0) * item.price,
-    0
-  );
+  const total = menu.reduce((sum, item) => {
+    if (item.variations && item.variations.length > 0) {
+      return sum + item.variations.reduce((vs, v) => vs + (cart[cartKey(item.id, v.id)] || 0) * v.price, 0);
+    }
+    return sum + (cart[item.id] || 0) * item.price;
+  }, 0);
   const count = Object.values(cart).reduce((s, q) => s + q, 0);
 
   const imgClasses = [
@@ -110,6 +117,47 @@ function MenuStep({
     "menu-img-5",
     "menu-img-6",
   ];
+
+  // Helper: qty controls for a single cart key
+  const QtyControl = ({ ck, price }: { ck: string; price: number }) => {
+    const qty = cart[ck] || 0;
+    if (qty === 0) {
+      return (
+        <button
+          onClick={() => setCart({ ...cart, [ck]: 1 })}
+          className="glass-cta"
+          style={{ padding: "3px 10px", fontSize: "12px", borderRadius: "10px" }}
+        >
+          <Plus size={12} />
+          เพิ่ม
+        </button>
+      );
+    }
+    return (
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => {
+            const next = { ...cart };
+            if (qty <= 1) delete next[ck];
+            else next[ck] = qty - 1;
+            setCart(next);
+          }}
+          className="w-6 h-6 rounded-full flex items-center justify-center"
+          style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
+        >
+          <Minus size={12} />
+        </button>
+        <span className="font-bold text-xs w-4 text-center" style={{ color: "var(--theme-text-primary)" }}>{qty}</span>
+        <button
+          onClick={() => setCart({ ...cart, [ck]: qty + 1 })}
+          className="w-6 h-6 rounded-full flex items-center justify-center"
+          style={{ background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)", color: "var(--theme-primary)" }}
+        >
+          <Plus size={12} />
+        </button>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -122,106 +170,89 @@ function MenuStep({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-28">
         {menu.map((item, i) => {
-          const qty = cart[item.id] || 0;
+          const hasVariations = item.variations && item.variations.length > 0;
+          // Total qty for this item across all variations
+          const itemQty = hasVariations
+            ? item.variations!.reduce((s, v) => s + (cart[cartKey(item.id, v.id)] || 0), 0)
+            : cart[item.id] || 0;
+
           return (
             <div
               key={item.id}
-              className="glass-card overflow-hidden flex"
+              className="glass-card overflow-hidden"
               style={{ cursor: "default" }}
             >
-              {/* Image */}
-              {item.imageUrl ? (
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="w-24 h-24 object-cover shrink-0"
-                  style={{ borderRadius: "24px 0 0 24px" }}
-                />
-              ) : (
-                <div
-                  className={`${imgClasses[i % imgClasses.length]} w-24 h-24 shrink-0`}
-                  style={{ borderRadius: "24px 0 0 24px" }}
-                />
-              )}
+              <div className="flex">
+                {/* Image */}
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="w-24 h-24 object-cover shrink-0"
+                    style={{ borderRadius: "24px 0 0 0" }}
+                  />
+                ) : (
+                  <div
+                    className={`${imgClasses[i % imgClasses.length]} w-24 h-24 shrink-0`}
+                    style={{ borderRadius: "24px 0 0 0" }}
+                  />
+                )}
 
-              {/* Content */}
-              <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
-                <div>
-                  <h3
-                    className="font-semibold text-sm truncate"
-                    style={{ color: "var(--theme-text-primary)" }}
-                  >
-                    {item.name}
-                  </h3>
-                  <p
-                    className="text-xs line-clamp-1"
-                    style={{ color: "var(--theme-text-secondary)" }}
-                  >
-                    {item.description}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span
-                    className="font-bold text-sm"
-                    style={{ color: "var(--theme-primary)" }}
-                  >
-                    ฿{item.price}
-                  </span>
-
-                  {qty === 0 ? (
-                    <button
-                      onClick={() =>
-                        setCart({ ...cart, [item.id]: 1 })
-                      }
-                      className="glass-cta"
-                      style={{
-                        padding: "4px 14px",
-                        fontSize: "13px",
-                        borderRadius: "12px",
-                      }}
+                {/* Content */}
+                <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
+                  <div>
+                    <h3
+                      className="font-semibold text-sm truncate"
+                      style={{ color: "var(--theme-text-primary)" }}
                     >
-                      <Plus size={14} />
-                      เพิ่ม
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          const next = { ...cart };
-                          if (qty <= 1) delete next[item.id];
-                          else next[item.id] = qty - 1;
-                          setCart(next);
-                        }}
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{
-                          background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)",
-                          color: "var(--theme-primary)",
-                        }}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <span
-                        className="font-bold text-sm w-5 text-center"
-                        style={{ color: "var(--theme-text-primary)" }}
-                      >
-                        {qty}
+                      {item.name}
+                    </h3>
+                    <p
+                      className="text-xs line-clamp-1"
+                      style={{ color: "var(--theme-text-secondary)" }}
+                    >
+                      {item.description}
+                    </p>
+                  </div>
+
+                  {/* No variations → simple price + qty */}
+                  {!hasVariations && (
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="font-bold text-sm" style={{ color: "var(--theme-primary)" }}>
+                        ฿{item.price}
                       </span>
-                      <button
-                        onClick={() =>
-                          setCart({ ...cart, [item.id]: qty + 1 })
-                        }
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
-                        style={{
-                          background: "color-mix(in srgb, var(--theme-primary) 10%, transparent)",
-                          color: "var(--theme-primary)",
-                        }}
-                      >
-                        <Plus size={14} />
-                      </button>
+                      <QtyControl ck={item.id} price={item.price} />
+                    </div>
+                  )}
+
+                  {/* Has variations → show price range */}
+                  {hasVariations && (
+                    <div className="mt-2">
+                      <span className="font-bold text-xs" style={{ color: "var(--theme-primary)" }}>
+                        ฿{Math.min(...item.variations!.map((v) => v.price))} - ฿{Math.max(...item.variations!.map((v) => v.price))}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Variation rows */}
+              {hasVariations && (
+                <div
+                  className="px-3 pb-3 flex flex-col gap-1.5"
+                  style={{ borderTop: "1px solid color-mix(in srgb, var(--theme-primary) 8%, transparent)" }}
+                >
+                  {item.variations!.map((v) => (
+                    <div key={v.id} className="flex items-center justify-between pt-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs" style={{ color: "var(--theme-text-secondary)" }}>{v.name}</span>
+                        <span className="text-xs font-semibold" style={{ color: "var(--theme-primary)" }}>฿{v.price}</span>
+                      </div>
+                      <QtyControl ck={cartKey(item.id, v.id)} price={v.price} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -431,7 +462,7 @@ function PaymentStep({
           {items.map((item) => (
             <div key={item.menuItemId} className="flex justify-between text-sm">
               <span style={{ color: "var(--theme-text-secondary)" }}>
-                {item.name} x{item.quantity}
+                {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
               </span>
               <span className="font-medium" style={{ color: "var(--theme-text-primary)" }}>
                 ฿{item.price * item.quantity}
@@ -743,7 +774,7 @@ function TicketStep({ order }: { order: Order }) {
               className="flex justify-between text-sm py-1"
             >
               <span style={{ color: "var(--theme-text-secondary)" }}>
-                {item.name} x{item.quantity}
+                {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
               </span>
               <span style={{ color: "var(--theme-text-primary)" }}>
                 ฿{item.price * item.quantity}
@@ -825,14 +856,25 @@ export default function OrderPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
 
-  // Build items from cart
+  // Build items from cart (supports "itemId" and "itemId:varId" keys)
   const buildItems = useCallback((): OrderItem[] => {
     return Object.entries(cart)
       .filter(([, qty]) => qty > 0)
-      .map(([id, qty]) => {
-        const menuItem = content.menu.find((m) => m.id === id)!;
+      .map(([key, qty]) => {
+        const [itemId, varId] = key.split(":");
+        const menuItem = content.menu.find((m) => m.id === itemId)!;
+        if (varId && menuItem.variations) {
+          const variation = menuItem.variations.find((v) => v.id === varId);
+          return {
+            menuItemId: itemId,
+            name: menuItem.name,
+            variationName: variation?.name,
+            price: variation?.price || menuItem.price,
+            quantity: qty,
+          };
+        }
         return {
-          menuItemId: id,
+          menuItemId: itemId,
           name: menuItem.name,
           price: menuItem.price,
           quantity: qty,

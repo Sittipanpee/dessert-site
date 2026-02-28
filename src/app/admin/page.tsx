@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useContent } from "@/hooks/useContent";
-import { SiteContent, MenuItem, Branch, defaultContent } from "@/data/defaultContent";
+import { SiteContent, MenuItem, MenuVariation, Branch, defaultContent } from "@/data/defaultContent";
 import {
   ArrowLeft,
   Plus,
@@ -395,6 +395,63 @@ function AdminDashboard() {
                         ยอดนิยม (Popular badge)
                       </span>
                     </label>
+                  </div>
+
+                  {/* ── ตัวเลือก (Variations) ── */}
+                  <div className="sm:col-span-2 mt-2">
+                    <label
+                      className="text-xs font-medium mb-2 block"
+                      style={{ color: "var(--theme-text-secondary)" }}
+                    >
+                      ตัวเลือก (เช่น ขนาด, ระดับความหวาน) — เว้นว่างถ้าไม่มี
+                    </label>
+                    {(item.variations || []).map((v, vi) => (
+                      <div key={v.id} className="flex items-center gap-2 mb-2">
+                        <input
+                          className="admin-input flex-1"
+                          placeholder="ชื่อ เช่น แก้วใหญ่"
+                          value={v.name}
+                          onChange={(e) => {
+                            const vars = [...(item.variations || [])];
+                            vars[vi] = { ...vars[vi], name: e.target.value };
+                            updateMenuItem(item.id, "variations" as keyof MenuItem, vars as unknown as string);
+                          }}
+                        />
+                        <input
+                          className="admin-input w-24"
+                          type="number"
+                          placeholder="ราคา"
+                          value={v.price}
+                          onChange={(e) => {
+                            const vars = [...(item.variations || [])];
+                            vars[vi] = { ...vars[vi], price: parseInt(e.target.value) || 0 };
+                            updateMenuItem(item.id, "variations" as keyof MenuItem, vars as unknown as string);
+                          }}
+                        />
+                        <span className="text-xs shrink-0" style={{ color: "var(--theme-text-secondary)" }}>฿</span>
+                        <button
+                          onClick={() => {
+                            const vars = (item.variations || []).filter((_, j) => j !== vi);
+                            updateMenuItem(item.id, "variations" as keyof MenuItem, (vars.length ? vars : undefined) as unknown as string);
+                          }}
+                          className="p-1 rounded-lg"
+                          style={{ color: "#E8668B" }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => {
+                        const vars = [...(item.variations || []), { id: Date.now().toString(), name: "", price: item.price }];
+                        updateMenuItem(item.id, "variations" as keyof MenuItem, vars as unknown as string);
+                      }}
+                      className="text-xs font-semibold flex items-center gap-1 mt-1"
+                      style={{ color: "var(--theme-primary)" }}
+                    >
+                      <Plus size={14} />
+                      เพิ่มตัวเลือก
+                    </button>
                   </div>
                 </div>
               </div>

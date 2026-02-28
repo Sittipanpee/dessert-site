@@ -1,3 +1,9 @@
+export interface MenuVariation {
+  id: string;
+  name: string; // เช่น "แก้วใหญ่", "แก้วเล็ก"
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -5,6 +11,7 @@ export interface MenuItem {
   price: number;
   isPopular: boolean;
   imageUrl: string;
+  variations?: MenuVariation[];
 }
 
 export interface Branch {

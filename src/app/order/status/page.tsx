@@ -114,7 +114,7 @@ function StatusContent() {
           {(order.items || []).map((item, i) => (
             <div key={i} className="flex justify-between text-sm py-1">
               <span style={{ color: "var(--theme-text-secondary)" }}>
-                {item.name} x{item.quantity}
+                {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
               </span>
               <span style={{ color: "var(--theme-text-primary)" }}>
                 ฿{item.price * item.quantity}

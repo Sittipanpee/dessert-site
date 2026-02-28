@@ -1,6 +1,7 @@
 export interface OrderItem {
   menuItemId: string;
   name: string;
+  variationName?: string; // เช่น "แก้วใหญ่"
   price: number;
   quantity: number;
 }

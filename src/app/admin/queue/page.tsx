@@ -374,7 +374,7 @@ function QueueDashboard() {
                         className="text-xs mr-2"
                         style={{ color: "var(--theme-text-secondary)" }}
                       >
-                        {item.name} x{item.quantity}
+                        {item.name}{item.variationName ? ` (${item.variationName})` : ""} x{item.quantity}
                       </span>
                     ))}
                   </div>
