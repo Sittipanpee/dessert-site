@@ -38,6 +38,7 @@ async function writeBlobJson(key: string, data: unknown): Promise<void> {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
 }
 
@@ -132,6 +133,7 @@ export async function uploadProof(file: File, orderId: string): Promise<string> 
     access: "public",
     contentType: file.type,
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
   return blob.downloadUrl;
 }
