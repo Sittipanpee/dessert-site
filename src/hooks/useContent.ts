@@ -3,71 +3,77 @@
 import { useState, useEffect, useCallback } from "react";
 import { defaultContent, SiteContent, MenuItem, OptionGroup } from "@/data/defaultContent";
 
-const STORAGE_KEY = "dessert-site-content";
-
 export function useContent() {
   const [content, setContent] = useState<SiteContent>(defaultContent);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Merge with defaults so new fields always exist
-        const merged: SiteContent = {
-          ...defaultContent,
-          ...parsed,
-          hero: { ...defaultContent.hero, ...parsed.hero },
-          about: { ...defaultContent.about, ...parsed.about },
-          cta: { ...defaultContent.cta, ...parsed.cta },
-          footer: { ...defaultContent.footer, ...parsed.footer },
-          menu: (parsed.menu ?? defaultContent.menu).map((item: Record<string, unknown>) => {
-            const base = { imageUrl: "", ...item } as MenuItem;
-            // Migration: convert old variations → optionGroups
-            if (base.variations && base.variations.length > 0 && !base.optionGroups) {
-              const migrated: OptionGroup = {
-                id: "migrated-" + (base.id || Date.now()),
+    fetch("/api/site-content")
+      .then((res) => res.json())
+      .then((data: SiteContent) => {
+        // Migration: convert old variations → optionGroups
+        const migrated: SiteContent = {
+          ...data,
+          menu: (data.menu ?? []).map((item: MenuItem) => {
+            if (item.variations && item.variations.length > 0 && !item.optionGroups) {
+              const group: OptionGroup = {
+                id: "migrated-" + (item.id || Date.now()),
                 name: "ตัวเลือก",
                 pricingType: "fixed",
                 selectionType: "single",
-                choices: base.variations.map((v) => ({
+                choices: item.variations.map((v) => ({
                   id: v.id,
                   name: v.name,
                   price: v.price,
                 })),
               };
-              base.optionGroups = [migrated];
+              return { ...item, optionGroups: [group] };
             }
-            return base;
+            return item;
           }),
-          branches: parsed.branches ?? defaultContent.branches,
         };
-        setContent(merged);
-      }
-    } catch {
-      // Fall back to defaults
-    }
-    setIsLoaded(true);
+        setContent(migrated);
+      })
+      .catch(() => {
+        // Fall back to defaults
+      })
+      .finally(() => {
+        setIsLoaded(true);
+      });
   }, []);
 
-  const saveContent = useCallback((newContent: SiteContent) => {
+  const saveContent = useCallback(async (newContent: SiteContent) => {
     setContent(newContent);
+    setIsSaving(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newContent));
+      await fetch("/api/site-content", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newContent),
+      });
     } catch {
-      // Storage full or unavailable
+      // Silent fail — content is still updated locally
+    } finally {
+      setIsSaving(false);
     }
   }, []);
 
-  const resetContent = useCallback(() => {
+  const resetContent = useCallback(async () => {
     setContent(defaultContent);
+    setIsSaving(true);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      await fetch("/api/site-content", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(defaultContent),
+      });
     } catch {
-      // Ignore
+      // Silent fail
+    } finally {
+      setIsSaving(false);
     }
   }, []);
 
-  return { content, saveContent, resetContent, isLoaded };
+  return { content, saveContent, resetContent, isLoaded, isSaving };
 }

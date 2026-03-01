@@ -102,22 +102,24 @@ export const themes: ThemePalette[] = [
   },
 ];
 
-const STORAGE_KEY = "dessert-site-theme";
-
 export function useTheme() {
   const [themeId, setThemeId] = useState("pandan");
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored && themes.find((t) => t.id === stored)) {
-        setThemeId(stored);
-      }
-    } catch {
-      // ignore
-    }
-    setIsLoaded(true);
+    fetch("/api/theme")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.themeId && themes.find((t) => t.id === data.themeId)) {
+          setThemeId(data.themeId);
+        }
+      })
+      .catch(() => {
+        // Fall back to default
+      })
+      .finally(() => {
+        setIsLoaded(true);
+      });
   }, []);
 
   // Apply CSS variables whenever theme changes
@@ -142,11 +144,13 @@ export function useTheme() {
 
   const setTheme = useCallback((id: string) => {
     setThemeId(id);
-    try {
-      localStorage.setItem(STORAGE_KEY, id);
-    } catch {
-      // ignore
-    }
+    fetch("/api/theme", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ themeId: id }),
+    }).catch(() => {
+      // Silent fail
+    });
   }, []);
 
   const currentTheme = themes.find((t) => t.id === themeId) || themes[0];

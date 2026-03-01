@@ -17,7 +17,7 @@ import { LoginScreen, SectionCard } from "@/components/AdminShared";
 import { useTheme, themes } from "@/hooks/useTheme";
 
 function AdminDashboard() {
-  const { content, saveContent, resetContent } = useContent();
+  const { content, saveContent, resetContent, isSaving } = useContent();
   const { themeId, setTheme, currentTheme } = useTheme();
   const [draft, setDraft] = useState<SiteContent>(content);
   const [saved, setSaved] = useState(false);
@@ -26,15 +26,15 @@ function AdminDashboard() {
     setDraft(content);
   }, [content]);
 
-  const handleSave = () => {
-    saveContent(draft);
+  const handleSave = async () => {
+    await saveContent(draft);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (confirm("รีเซ็ตข้อมูลทั้งหมดเป็นค่าเริ่มต้น?")) {
-      resetContent();
+      await resetContent();
       setDraft(defaultContent);
     }
   };
@@ -747,11 +747,11 @@ function AdminDashboard() {
 
         {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3 mt-8">
-          <button onClick={handleSave} className="glass-cta flex-1">
+          <button onClick={handleSave} className="glass-cta flex-1" disabled={isSaving}>
             <Save size={18} />
-            {saved ? "บันทึกแล้ว!" : "บันทึกการเปลี่ยนแปลง"}
+            {isSaving ? "กำลังบันทึก..." : saved ? "บันทึกแล้ว!" : "บันทึกการเปลี่ยนแปลง"}
           </button>
-          <button onClick={handleReset} className="glass-cta-secondary flex-1">
+          <button onClick={handleReset} className="glass-cta-secondary flex-1" disabled={isSaving}>
             <RotateCcw size={18} />
             รีเซ็ตเป็นค่าเริ่มต้น
           </button>

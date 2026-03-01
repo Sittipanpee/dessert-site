@@ -1,8 +1,71 @@
 import { getSupabase } from "./supabase";
 import { Order, QueueConfig, defaultQueueConfig } from "@/data/orderTypes";
+import { SiteContent, defaultContent } from "@/data/defaultContent";
 
 function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+// ─── Site Content ───
+
+export async function getSiteContent(): Promise<SiteContent> {
+  const { data, error } = await getSupabase()
+    .from("site_content")
+    .select("content")
+    .eq("id", 1)
+    .single();
+
+  if (error || !data || !data.content) {
+    return defaultContent;
+  }
+
+  // Merge with defaults so new fields always exist
+  const parsed = data.content as Record<string, unknown>;
+  return {
+    ...defaultContent,
+    ...parsed,
+    hero: { ...defaultContent.hero, ...(parsed.hero as object) },
+    about: { ...defaultContent.about, ...(parsed.about as object) },
+    cta: { ...defaultContent.cta, ...(parsed.cta as object) },
+    footer: { ...defaultContent.footer, ...(parsed.footer as object) },
+    menu: (parsed.menu as SiteContent["menu"]) ?? defaultContent.menu,
+    branches: (parsed.branches as SiteContent["branches"]) ?? defaultContent.branches,
+  } as SiteContent;
+}
+
+export async function saveSiteContent(content: SiteContent): Promise<SiteContent> {
+  await getSupabase()
+    .from("site_content")
+    .update({
+      content,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  return content;
+}
+
+export async function getThemeId(): Promise<string> {
+  const { data, error } = await getSupabase()
+    .from("site_content")
+    .select("theme_id")
+    .eq("id", 1)
+    .single();
+
+  if (error || !data) return "pandan";
+  return (data.theme_id as string) || "pandan";
+}
+
+export async function saveThemeId(themeId: string): Promise<string> {
+  await getSupabase()
+    .from("site_content")
+    .update({
+      theme_id: themeId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  return themeId;
 }
 
 // ─── Queue Config ───
